@@ -130,11 +130,27 @@ var render = (md) => {
       )
     }
     if (state.content.toc) {
-      state.toc = toc.render(state.html)
+      // Crie o sumário aqui
+      createToc(state.html)
     }
     state.html = anchors(state.html)
     m.redraw()
   })
+}
+
+// A função para criar o sumário
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  headers.forEach((header) => {
+    const link = `<a href="#${header.id}">${header.textContent}</a>`;
+    toc += link;
+  });
+
+  state.toc = toc;
 }
 
 function mount () {
@@ -160,6 +176,11 @@ function mount () {
           onupdate: onupdate.theme,
           rel: 'stylesheet', type: 'text/css',
           href: chrome.runtime.getURL(`/themes/${state.theme}.css`),
+        }))
+        dom.push(m('link#_style', {
+          onupdate: onupdate.theme,
+          rel: 'stylesheet', type: 'text/css',
+          href: `/Volumes/Sites/chrome/markdown-viewer/assets/style.css`,
         }))
         $('body').classList.add(`_theme-${state.theme}`)
 
@@ -199,24 +220,29 @@ var anchors = (html) =>
     '<span class="octicon octicon-link"></span></a>'
   )
 
+// Função original TOC render
 var toc = (() => {
   var walk = (regex, string, group, result = [], match = regex.exec(string)) =>
     !match ? result : walk(regex, string, group, result.concat(!group ? match[1] :
-      group.reduce((all, name, index) => (all[name] = match[index + 1], all), {})))
+      group.reduce((all, name, index) => (all[name] = match[index + 1], all), {})));
   return {
-    render: (html) =>
-      walk(
-        /<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs,
-        html,
-        ['level', 'id', 'title']
-      )
-      .reduce((toc, {id, title, level}) => toc +=
-        '<div class="_ul">'.repeat(level) +
-        '<a href="#' + id + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>' +
-        '</div>'.repeat(level)
-      , '')
+    render: (html) => walk(
+      /<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs,
+      html,
+      ['level', 'id', 'title']
+    )
+      .reduce((toc, {id, title, level}) => {
+        const previousLevel = toc.length > 0 ? toc[toc.length - 1].level : 0;
+        if (level > previousLevel) {
+          return toc + '<ul><li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
+        } else if (level < previousLevel) {
+          return toc + '</li></ul><li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
+        } else {
+          return toc + '<li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
+        }
+      }, '')
   }
-})()
+})();
 
 var frontmatter = (md) => {
   if (/^-{3}[\s\S]+?-{3}/.test(md)) {
@@ -250,3 +276,21 @@ else {
     }
   }, 0)
 }
+
+// Adicione este trecho ao final do seu código JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      var ul = this.nextElementSibling;
+
+      if (ul.style.display === 'none') {
+        ul.style.display = 'block';
+      } else {
+        ul.style.display = 'none';
+      }
+    });
+  });
+});

@@ -1,5 +1,4 @@
 # Eu
-
 Por favor, ChatGPT. Gostaria que você me ajudasse em um plugin do Google Chrome chamado "Markdown Viewer, versão 5.1". Fiz o download dela pelo repositório "https://github.com/simov/markdown-viewer" e salvei no diretório "/Volumes/Sites/chrome/", pasta "markdown-viewer".
 Este plugin lê o arquivo markdown aberto direto pelo diretório absoluto, e exibe na tela em um modelo personalizado, renderizando o markdown, mas também construindo um layout com html, css e renderizando o markdown ao centro, ele possui vários temas e estamos usando a versão "GITHUB-DARK" no modelo "WIDE"
 
@@ -8,13 +7,11 @@ Uma das funções que também estão ativas, é a "content > toc", este "toc" pa
 Irei enviar dois arquivos pra você, que é o meu arquivo markdown e o arquivo de css, por favor aguarde que eu envie todos os arquivos para que eu te passe todas as informações antes de você me responder
 
 # ChatGPT
-
 Claro, estou aqui para ajudar! No entanto, é importante mencionar que, como um modelo de linguagem AI, não consigo receber arquivos ou dados diretamente dos usuários. No entanto, você pode me fornecer informações ou código de exemplo para ajudar a resolver seu problema.
 
 Por favor, compartilhe detalhes adicionais, incluindo o problema que você está enfrentando com o plugin Markdown Viewer, bem como qualquer trecho relevante de código (Markdown ou CSS) que você gostaria que eu revisasse. Assim, eu posso fornecer uma assistência mais efetiva.
 
 # Eu
-
 Obrigado, ChatGPT. Este é o nosso primeiro arquivo, ele é um arquivo html que aparentemente é montado com base em uma estrutura interna do plugin. Mas, o interessante é que ele gera uma estrutura recursiva de acordo com os níveis:
 
 ```
@@ -62,7 +59,6 @@ Claro, entendo. A estrutura que você mencionou é comum em documentos estrutura
 Aguardo o próximo arquivo ou detalhes adicionais para entender melhor o seu problema e fornecer uma solução mais precisa.
 
 # Eu
-
 Obrigado, ChatGPT. Você está correto em toda a sua análise até aqui, então, pelo que percebemos ele gera uma tag <ul> de forma recursiva de acordo com a quantidade de níveis que ele possui.
 Este arquivo js está na pasta /markdown-viewer/options/index.js, agora, o próximo arquivo que vou te mostrar, é um css que personaliza a estrutura da página:
 
@@ -2379,3 +2375,82 @@ Obrigado, ChatGPT. Estamos quase lá, agora você gerou os links da maneira corr
 ara ter o efeito de retrair e expandir ao clicar, você precisará adicionar algum código JavaScript para manipular eventos de clique nos itens do sumário. Vou usar a abordagem que você já tentou anteriormente, alterando um pouco para adaptar à nossa nova estrutura de sumário.
 
 Aqui está o código para manipular eventos de clique nos links do sumário. Isso deve ser adicionado após a geração do sumário:
+```
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('#_toc a');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      var ul = this.parentNode.querySelector('ul');
+
+      if (ul) {
+        if (ul.style.display === 'none' || ul.style.display === '') {
+          ul.style.display = 'block';
+        } else {
+          ul.style.display = 'none';
+        }
+      }
+    });
+  });
+});
+```
+
+# Eu
+Obrigado, ChatGPT, mas parece que este evento não está sendo executado
+
+# ChatGPT
+Peço desculpas pela confusão. A razão pela qual o evento não está sendo executado é provavelmente porque o sumário é gerado dinamicamente, após o evento DOMContentLoaded ser disparado. Portanto, quando o código tenta adicionar ouvintes de eventos aos links do sumário, esses links ainda não existem.
+
+Uma solução possível é adicionar os ouvintes de eventos diretamente após a criação do sumário, dentro da função createToc. Aqui está como você pode fazer isso:
+
+```
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  let previousLevel = 0;
+  headers.forEach((header) => {
+    const currentLevel = parseInt(header.nodeName.substring(1));
+    if(currentLevel > previousLevel) {
+      toc += '<ul>'.repeat(currentLevel - previousLevel);
+    } else if(currentLevel < previousLevel) {
+      toc += '</li></ul>'.repeat(previousLevel - currentLevel) + '</li>';
+    } else {
+      toc += '</li>';
+    }
+    toc += `<li><a href="#${header.id}">${header.textContent}</a>`;
+    previousLevel = currentLevel;
+  });
+  toc += '</li></ul>'.repeat(previousLevel);
+
+  state.toc = toc;
+
+  // Adicione os ouvintes de eventos após a criação do sumário.
+  setTimeout(function() {
+    var tocLinks = document.querySelectorAll('#_toc a');
+
+    tocLinks.forEach(function(tocLink) {
+      tocLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        var ul = this.parentNode.querySelector('ul');
+
+        if (ul) {
+          if (ul.style.display === 'none' || ul.style.display === '') {
+            ul.style.display = 'block';
+          } else {
+            ul.style.display = 'none';
+          }
+        }
+      });
+    });
+  }, 0);
+}
+```
+
+# Eu
+Incrível, ChatGPT. Sua solução funcionou perfeitamente, o único ajuste que tive que fazer foi alterar o setTimeout para 1000, pois estava retornando o primeiro, por não ter conseguido aguardar o restante do markdown ser carregado
+
+Agora, você pode por favor me ajudar a fazer um CSS no formato dark melhor para esta estrutura?

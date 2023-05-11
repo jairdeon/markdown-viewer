@@ -138,45 +138,48 @@ var render = (md) => {
   })
 }
 
-// A função para criar o sumário
 var createToc = (html) => {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
 
   let toc = '';
-  let currentLevel = 1;
-  let stack = [0];
-
+  let previousLevel = 0;
   headers.forEach((header) => {
-    const level = parseInt(header.tagName.slice(1), 10);
-
-    while (stack[0] < level) {
-      toc += '<ul>';
-      stack.unshift(level);
-    }
-
-    while (stack[0] > level) {
-      toc += '</li></ul>';
-      stack.shift();
-    }
-
-    if (currentLevel === level) {
+    const currentLevel = parseInt(header.nodeName.substring(1));
+    if(currentLevel > previousLevel) {
+      toc += '<ul>'.repeat(currentLevel - previousLevel);
+    } else if(currentLevel < previousLevel) {
+      toc += '</li></ul>'.repeat(previousLevel - currentLevel) + '</li>';
+    } else {
       toc += '</li>';
     }
-
-    const link = `<li><a href="#${header.id}">${header.textContent}</a>`;
-    toc += link;
-
-    currentLevel = level;
+    toc += `<li><a href="#${header.id}">${header.textContent}</a>`;
+    previousLevel = currentLevel;
   });
-
-  while (stack.length > 1) {
-    toc += '</li></ul>';
-    stack.shift();
-  }
+  toc += '</li></ul>'.repeat(previousLevel);
 
   state.toc = toc;
+
+  // Adicione os ouvintes de eventos após a criação do sumário.
+  setTimeout(function() {
+    var tocLinks = document.querySelectorAll('#_toc a');
+
+    tocLinks.forEach(function(tocLink) {
+      tocLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        var ul = this.parentNode.querySelector('ul');
+
+        if (ul) {
+          if (ul.style.display === 'none' || ul.style.display === '') {
+            ul.style.display = 'block';
+          } else {
+            ul.style.display = 'none';
+          }
+        }
+      });
+    });
+  }, 1000);
 }
 
 function mount () {
@@ -308,23 +311,3 @@ else {
     }
   }, 0)
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-  var tocLinks = document.querySelectorAll('#_toc a');
-
-  tocLinks.forEach(function(tocLink) {
-    tocLink.addEventListener('click', function(e) {
-      e.preventDefault();
-      var ul = this.parentNode.querySelector('ul');
-
-      if (ul) {
-        if (ul.style.display === 'none' || ul.style.display === '') {
-          ul.style.display = 'block';
-        } else {
-          ul.style.display = 'none';
-        }
-      }
-    });
-  });
-});
-

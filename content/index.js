@@ -277,15 +277,15 @@ var toc = (() => {
 })();
 
 document.addEventListener('DOMContentLoaded', function() {
-  var tocLinks = document.querySelectorAll('.toc-link');
+  var tocLinks = document.querySelectorAll('#_toc a');
 
   tocLinks.forEach(function(tocLink) {
     tocLink.addEventListener('click', function(e) {
+      e.preventDefault();
       var ul = this.parentNode.querySelector('ul');
 
       if (ul) {
-        e.preventDefault();
-        if (ul.style.display === 'none') {
+        if (ul.style.display === 'none' || ul.style.display === '') {
           ul.style.display = 'block';
         } else {
           ul.style.display = 'none';
@@ -294,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
 
 var frontmatter = (md) => {
   if (/^-{3}[\s\S]+?-{3}/.test(md)) {

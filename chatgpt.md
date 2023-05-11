@@ -1853,3 +1853,529 @@ Por favor, note que este código é apenas um exemplo e pode precisar de ajustes
 # Eu
 Obrigado, ChatGPT. Acredito que estamos quase lá. O único problema é que o HTML está sendo gerado em um nível somente, ao invés de ter vários níveis com base nos # do markdown, e o menu também não retraiu, mas acredito que seja porque não está com subníveis
 Lembre de me avisar quando estiver próximo ao limite para que eu possa pedir para você continuar
+
+
+# ChatGPT
+Compreendo, para que o menu seja retraído corretamente, realmente precisamos que o HTML esteja estruturado com vários níveis. Vamos ajustar o código JavaScript para gerar a estrutura correta.
+
+```
+var toc = (() => {
+  var walk = (regex, string, group, result = [], match = regex.exec(string)) =>
+    !match ? result : walk(regex, string, group, result.concat(!group ? match[1] :
+      group.reduce((all, name, index) => (all[name] = match[index + 1], all), {})));
+  return {
+    render: (html) => {
+      let stack = [0];
+      let output = '';
+      walk(/<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs, html, ['level', 'id', 'title'])
+      .forEach(({id, title, level}) => {
+        title = title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '');
+        level = parseInt(level, 10);
+        if (level > stack[0]) {
+          output += '<ul>'.repeat(level - stack[0]);
+          stack.unshift(level);
+        } else if (level < stack[0]) {
+          output += '</li></ul>'.repeat(stack[0] - level);
+          stack = [level].concat(stack.filter(l => l >= level));
+        } else {
+          output += '</li>';
+        }
+        output += '<li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title + '</a>';
+      });
+      output += '</li></ul>'.repeat(stack[0]);
+      return output;
+    }
+  }
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      var ul = this.parentNode.querySelector('ul');
+
+      if (ul) {
+        e.preventDefault();
+        if (ul.style.display === 'none') {
+          ul.style.display = 'block';
+        } else {
+          ul.style.display = 'none';
+        }
+      }
+    });
+  });
+});
+```
+
+# Eu
+ChatGPT, agora que percebi, o motivo que os menus não estão com níveis, é por conta da nossa função lá atrás:
+
+```
+// A função para criar o sumário
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  headers.forEach((header) => {
+    const link = `<a href="#${header.id}">${header.textContent}</a>`;
+    toc += link;
+  });
+
+  state.toc = toc;
+}
+```
+
+É ela que está sendo executada no lugar do toc que você criou. Vou colocar nosso código JS completo abaixo para você me ajudar a alterar para que agora funcione da forma correta, por favor
+
+```
+
+var $ = document.querySelector.bind(document)
+
+var state = {
+  theme: args.theme,
+  raw: args.raw,
+  themes: args.themes,
+  content: args.content,
+  compiler: args.compiler,
+  icon: args.icon,
+  html: '',
+  markdown: '',
+  toc: '',
+  reload: {
+    interval: null,
+    ms: 1000,
+    md: false,
+  },
+  _themes: {
+    'github': 'light',
+    'github-dark': 'dark',
+    'almond': 'light',
+    // 'air': 'light',
+    'awsm': 'light',
+    'axist': 'light',
+    'bamboo': 'auto',
+    'bullframe': 'light',
+    'holiday': 'auto',
+    'kacit': 'light',
+    'latex': 'light',
+    'marx': 'light',
+    'mini': 'light',
+    'modest': 'light',
+    'new': 'auto',
+    'no-class': 'auto',
+    'pico': 'auto',
+    'retro': 'dark',
+    'sakura': 'light',
+    'sakura-vader': 'dark',
+    'semantic': 'light',
+    'simple': 'auto',
+    // 'splendor': 'light',
+    'style-sans': 'light',
+    'style-serif': 'light',
+    'stylize': 'light',
+    'superstylin': 'auto',
+    'tacit': 'light',
+    'vanilla': 'auto',
+    'water': 'light',
+    'water-dark': 'dark',
+    'writ': 'light',
+  }
+}
+
+chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+  if (req.message === 'reload') {
+    location.reload(true)
+  }
+  else if (req.message === 'theme') {
+    state.theme = req.theme
+    m.redraw()
+  }
+  else if (req.message === 'themes') {
+    state.themes = req.themes
+    m.redraw()
+  }
+  else if (req.message === 'raw') {
+    state.raw = req.raw
+    m.redraw()
+  }
+  else if (req.message === 'autoreload') {
+    clearInterval(state.reload.interval)
+  }
+})
+
+var oncreate = {
+  markdown: () => {
+    setTimeout(() => scroll(), 0)
+  },
+  html: () => {
+    update()
+  }
+}
+
+var onupdate = {
+  html: () => {
+    if (state.reload.md) {
+      state.reload.md = false
+      update(true)
+    }
+  },
+  theme: () => {
+    if (state.content.mermaid) {
+      setTimeout(() => mmd.render(), 0)
+    }
+  }
+}
+
+var update = (update) => {
+  scroll(update)
+
+  if (state.content.syntax) {
+    setTimeout(() => Prism.highlightAll(), 20)
+  }
+
+  if (state.content.mermaid) {
+    setTimeout(() => mmd.render(), 40)
+  }
+
+  if (state.content.mathjax) {
+    setTimeout(() => mj.render(), 60)
+  }
+}
+
+var render = (md) => {
+  state.markdown = frontmatter(md)
+  chrome.runtime.sendMessage({
+    message: 'markdown',
+    compiler: state.compiler,
+    markdown: state.markdown
+  }, (res) => {
+    state.html = res.html
+    if (state.content.emoji) {
+      state.html = emojinator(state.html)
+    }
+    if (state.content.mermaid) {
+      state.html = state.html.replace(
+        /<code class="language-(?:mermaid|mmd)">/gi,
+        '<code class="mermaid">'
+      )
+    }
+    if (state.content.toc) {
+      // Crie o sumário aqui
+      createToc(state.html)
+    }
+    state.html = anchors(state.html)
+    m.redraw()
+  })
+}
+
+// A função para criar o sumário
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  headers.forEach((header) => {
+    const link = `<a href="#${header.id}">${header.textContent}</a>`;
+    toc += link;
+  });
+
+  state.toc = toc;
+}
+
+function mount () {
+  $('pre').style.display = 'none'
+  var md = $('pre').innerText
+  favicon()
+
+  m.mount($('body'), {
+    oninit: () => {
+      render(md)
+    },
+    view: () => {
+      var dom = []
+
+      if (state.raw) {
+        dom.push(m('pre#_markdown', {oncreate: oncreate.markdown}, state.markdown))
+        $('body').classList.remove('_toc-left', '_toc-right')
+      }
+      else if (state.html) {
+        var loaded = Array.from($('body').classList).filter((name) => /^_theme/.test(name))[0]
+        $('body').classList.remove(loaded)
+        dom.push(m('link#_theme', {
+          onupdate: onupdate.theme,
+          rel: 'stylesheet', type: 'text/css',
+          href: chrome.runtime.getURL(`/themes/${state.theme}.css`),
+        }))
+        dom.push(m('link#_style', {
+          onupdate: onupdate.theme,
+          rel: 'stylesheet', type: 'text/css',
+          href: `/Volumes/Sites/chrome/markdown-viewer/assets/style.css`,
+        }))
+        $('body').classList.add(`_theme-${state.theme}`)
+
+        if (state.content.syntax) {
+          var prism =
+            state._themes[state.theme] === 'dark' ||
+            (state._themes[state.theme] === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+            ? 'prism-okaidia' : 'prism'
+          dom.push(m('link#_prism', {
+            rel: 'stylesheet', type: 'text/css',
+            href: chrome.runtime.getURL(`/vendor/${prism}.min.css`),
+          }))
+        }
+
+        dom.push(m('#_html', {oncreate: oncreate.html, onupdate: onupdate.html,
+          class: (/github(-dark)?/.test(state.theme) ? 'markdown-body' : 'markdown-theme') +
+          (state.themes.width !== 'auto' ? ` _width-${state.themes.width}` : '')
+        },
+          m.trust(state.html)
+        ))
+
+        if (state.content.toc) {
+          dom.push(m('#_toc.tex2jax-ignore', m.trust(state.toc)))
+          $('body').classList.add('_toc-left')
+        }
+      }
+
+      return dom
+    }
+  })
+}
+
+var anchors = (html) =>
+  html.replace(/(<h[1-6] id="(.*?)">)/g, (header, _, id) =>
+    header +
+    '<a class="anchor" name="' + id + '" href="#' + id + '">' +
+    '<span class="octicon octicon-link"></span></a>'
+  )
+
+// Função TOC
+var toc = (() => {
+  var walk = (regex, string, group, result = [], match = regex.exec(string)) =>
+    !match ? result : walk(regex, string, group, result.concat(!group ? match[1] :
+      group.reduce((all, name, index) => (all[name] = match[index + 1], all), {})));
+  return {
+    render: (html) => {
+      let stack = [0];
+      let output = '';
+      walk(/<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs, html, ['level', 'id', 'title'])
+        .forEach(({id, title, level}) => {
+          title = title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '');
+          level = parseInt(level, 10);
+          if (level > stack[0]) {
+            output += '<ul>'.repeat(level - stack[0]);
+            stack.unshift(level);
+          } else if (level < stack[0]) {
+            output += '</li></ul>'.repeat(stack[0] - level);
+            stack = [level].concat(stack.filter(l => l >= level));
+          } else {
+            output += '</li>';
+          }
+          output += '<li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title + '</a>';
+        });
+      output += '</li></ul>'.repeat(stack[0]);
+      return output;
+    }
+  }
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      var ul = this.parentNode.querySelector('ul');
+
+      if (ul) {
+        e.preventDefault();
+        if (ul.style.display === 'none') {
+          ul.style.display = 'block';
+        } else {
+          ul.style.display = 'none';
+        }
+      }
+    });
+  });
+});
+
+var frontmatter = (md) => {
+  if (/^-{3}[\s\S]+?-{3}/.test(md)) {
+    var [, yaml] = /^-{3}([\s\S]+?)-{3}/.exec(md)
+    var title = /title: (?:'|")*(.*)(?:'|")*/.exec(yaml)
+    title && (document.title = title[1])
+  }
+  else if (/^\+{3}[\s\S]+?\+{3}/.test(md)) {
+    var [, toml] = /^\+{3}([\s\S]+?)\+{3}/.exec(md)
+    var title = /title = (?:'|"|`)*(.*)(?:'|"|`)*/.exec(toml)
+    title && (document.title = title[1])
+  }
+  return md.replace(/^(?:-|\+){3}[\s\S]+?(?:-|\+){3}/, '')
+}
+
+var favicon = () => {
+  var favicon = document.createElement('link')
+  favicon.rel = 'icon'
+  favicon.href = chrome.runtime.getURL(`/icons/${state.icon}/16x16.png`)
+  $('head').appendChild(favicon)
+}
+
+if (document.readyState === 'complete') {
+  mount()
+}
+else {
+  var timeout = setInterval(() => {
+    if (document.readyState === 'complete') {
+      clearInterval(timeout)
+      mount()
+    }
+  }, 0)
+}
+
+// Adicione este trecho ao final do seu código JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      var ul = this.nextElementSibling;
+
+      if (ul.style.display === 'none') {
+        ul.style.display = 'block';
+      } else {
+        ul.style.display = 'none';
+      }
+    });
+  });
+});
+```
+
+# ChatGPT
+Entendi. O que precisamos fazer é substituir a função createToc existente pela função toc.render que criamos.
+
+Vamos começar fazendo a substituição da função createToc. Ao invés de usar DOMParser, vamos usar a função toc.render para gerar o sumário com a formatação correta.
+
+Em seguida, precisamos assegurar que a interação do usuário com os links do sumário ocorra após a geração do HTML.
+
+Veja como ficaria:
+
+```
+// Substituição da função createToc
+var createToc = (html) => {
+  state.toc = toc.render(html);
+}
+
+// ...
+
+// A parte do código onde chamamos createToc
+if (state.content.toc) {
+  createToc(state.html)
+}
+
+// ...
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Certifique-se de que os links TOC sejam interativos após a geração do HTML
+  setTimeout(() => {
+    var tocLinks = document.querySelectorAll('.toc-link');
+
+    tocLinks.forEach(function(tocLink) {
+      tocLink.addEventListener('click', function(e) {
+        var ul = this.nextElementSibling;
+
+        if (ul) {
+          e.preventDefault();
+          if (ul.style.display === 'none') {
+            ul.style.display = 'block';
+          } else {
+            ul.style.display = 'none';
+          }
+        }
+      });
+    });
+  }, 0);
+});
+```
+
+Aqui, atualizamos a função createToc para usar toc.render(html). O código agora deve gerar um sumário com a formatação correta.
+
+Além disso, adicionei um setTimeout com um delay de 0 milissegundos na parte onde fazemos a interação dos links do sumário. Isso garante que o código será executado após a finalização de todas as operações de renderização do HTML, assegurando que todos os elementos necessários estejam disponíveis no momento em que o código for executado.
+
+# Eu
+Obrigado, ChatGPT. MAs não deu certo, vamos por etapa, primeiro vamos corrigir esse código para que tenha os sub níveis com ul>li de acordo com o seu nível atual
+
+```
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  headers.forEach((header) => {
+    const link = `<a href="#${header.id}">${header.textContent}</a>`;
+    toc += link;
+  });
+
+  state.toc = toc;
+}
+```
+
+# ChatGPT
+Claro, podemos modificar a função createToc para criar um sumário aninhado. Aqui está a função atualizada:
+```
+var createToc = (html) => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  let toc = '';
+  let currentLevel = 1;
+  let stack = [0];
+
+  headers.forEach((header) => {
+    const level = parseInt(header.tagName.slice(1), 10);
+
+    while (stack[0] < level) {
+      toc += '<ul>';
+      stack.unshift(level);
+    }
+
+    while (stack[0] > level) {
+      toc += '</li></ul>';
+      stack.shift();
+    }
+
+    if (currentLevel === level) {
+      toc += '</li>';
+    }
+
+    const link = `<li><a href="#${header.id}">${header.textContent}</a>`;
+    toc += link;
+
+    currentLevel = level;
+  });
+
+  while (stack.length > 1) {
+    toc += '</li></ul>';
+    stack.shift();
+  }
+
+  state.toc = toc;
+}
+```
+
+Essa nova versão da função createToc cria um sumário aninhado. Ela cria uma lista aninhada (<ul>) para cada nível de cabeçalho e fecha a lista (</ul>) quando sai de um nível. Ela também adiciona um item de lista (<li>) para cada cabeçalho e fecha o item (</li>) antes de iniciar o próximo no mesmo nível.
+
+Por favor, tente esta versão atualizada da função e veja se ela atende às suas necessidades.
+
+# Eu
+Obrigado, ChatGPT. Estamos quase lá, agora você gerou os links da maneira correta, e como podemos fazer para que tenhamos o efeito de ao clicar, retrair ou expandir todos os níveis abaixo?
+
+# ChatGPT
+ara ter o efeito de retrair e expandir ao clicar, você precisará adicionar algum código JavaScript para manipular eventos de clique nos itens do sumário. Vou usar a abordagem que você já tentou anteriormente, alterando um pouco para adaptar à nossa nova estrutura de sumário.
+
+Aqui está o código para manipular eventos de clique nos links do sumário. Isso deve ser adicionado após a geração do sumário:

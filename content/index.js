@@ -145,10 +145,36 @@ var createToc = (html) => {
   const headers = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
 
   let toc = '';
+  let currentLevel = 1;
+  let stack = [0];
+
   headers.forEach((header) => {
-    const link = `<a href="#${header.id}">${header.textContent}</a>`;
+    const level = parseInt(header.tagName.slice(1), 10);
+
+    while (stack[0] < level) {
+      toc += '<ul>';
+      stack.unshift(level);
+    }
+
+    while (stack[0] > level) {
+      toc += '</li></ul>';
+      stack.shift();
+    }
+
+    if (currentLevel === level) {
+      toc += '</li>';
+    }
+
+    const link = `<li><a href="#${header.id}">${header.textContent}</a>`;
     toc += link;
+
+    currentLevel = level;
   });
+
+  while (stack.length > 1) {
+    toc += '</li></ul>';
+    stack.shift();
+  }
 
   state.toc = toc;
 }
@@ -220,29 +246,54 @@ var anchors = (html) =>
     '<span class="octicon octicon-link"></span></a>'
   )
 
-// Função original TOC render
+// Função TOC
 var toc = (() => {
   var walk = (regex, string, group, result = [], match = regex.exec(string)) =>
     !match ? result : walk(regex, string, group, result.concat(!group ? match[1] :
       group.reduce((all, name, index) => (all[name] = match[index + 1], all), {})));
   return {
-    render: (html) => walk(
-      /<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs,
-      html,
-      ['level', 'id', 'title']
-    )
-      .reduce((toc, {id, title, level}) => {
-        const previousLevel = toc.length > 0 ? toc[toc.length - 1].level : 0;
-        if (level > previousLevel) {
-          return toc + '<ul><li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
-        } else if (level < previousLevel) {
-          return toc + '</li></ul><li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
-        } else {
-          return toc + '<li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '') + '</a>';
-        }
-      }, '')
+    render: (html) => {
+      let stack = [0];
+      let output = '';
+      walk(/<h([1-6]) id="(.*?)">(.*?)<\/h[1-6]>/gs, html, ['level', 'id', 'title'])
+        .forEach(({id, title, level}) => {
+          title = title.replace(/<a[^>]+>/g, '').replace(/<\/a>/g, '');
+          level = parseInt(level, 10);
+          if (level > stack[0]) {
+            output += '<ul>'.repeat(level - stack[0]);
+            stack.unshift(level);
+          } else if (level < stack[0]) {
+            output += '</li></ul>'.repeat(stack[0] - level);
+            stack = [level].concat(stack.filter(l => l >= level));
+          } else {
+            output += '</li>';
+          }
+          output += '<li><a href="#' + id + '" class="toc-link" data-level="' + level + '">' + title + '</a>';
+        });
+      output += '</li></ul>'.repeat(stack[0]);
+      return output;
+    }
   }
 })();
+
+document.addEventListener('DOMContentLoaded', function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+
+  tocLinks.forEach(function(tocLink) {
+    tocLink.addEventListener('click', function(e) {
+      var ul = this.parentNode.querySelector('ul');
+
+      if (ul) {
+        e.preventDefault();
+        if (ul.style.display === 'none') {
+          ul.style.display = 'block';
+        } else {
+          ul.style.display = 'none';
+        }
+      }
+    });
+  });
+});
 
 var frontmatter = (md) => {
   if (/^-{3}[\s\S]+?-{3}/.test(md)) {

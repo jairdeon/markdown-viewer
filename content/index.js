@@ -276,26 +276,6 @@ var toc = (() => {
   }
 })();
 
-document.addEventListener('DOMContentLoaded', function() {
-  var tocLinks = document.querySelectorAll('#_toc a');
-
-  tocLinks.forEach(function(tocLink) {
-    tocLink.addEventListener('click', function(e) {
-      e.preventDefault();
-      var ul = this.parentNode.querySelector('ul');
-
-      if (ul) {
-        if (ul.style.display === 'none' || ul.style.display === '') {
-          ul.style.display = 'block';
-        } else {
-          ul.style.display = 'none';
-        }
-      }
-    });
-  });
-});
-
-
 var frontmatter = (md) => {
   if (/^-{3}[\s\S]+?-{3}/.test(md)) {
     var [, yaml] = /^-{3}([\s\S]+?)-{3}/.exec(md)
@@ -329,20 +309,22 @@ else {
   }, 0)
 }
 
-// Adicione este trecho ao final do seu código JavaScript
 document.addEventListener('DOMContentLoaded', function() {
-  var tocLinks = document.querySelectorAll('.toc-link');
+  var tocLinks = document.querySelectorAll('#_toc a');
 
   tocLinks.forEach(function(tocLink) {
     tocLink.addEventListener('click', function(e) {
       e.preventDefault();
-      var ul = this.nextElementSibling;
+      var ul = this.parentNode.querySelector('ul');
 
-      if (ul.style.display === 'none') {
-        ul.style.display = 'block';
-      } else {
-        ul.style.display = 'none';
+      if (ul) {
+        if (ul.style.display === 'none' || ul.style.display === '') {
+          ul.style.display = 'block';
+        } else {
+          ul.style.display = 'none';
+        }
       }
     });
   });
 });
+
